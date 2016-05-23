@@ -44,6 +44,9 @@ def git_csi(project_name, after, before, exluded_dirs):
 
     cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > {1}_cloc.csv".format(exluded_dirs, project_name)
 
+    merge = merge_maat + " {0}_freq.csv {0}_cloc.csv > {0}_merge.csv".format(project_name)
+
+    """
     click.echo("Generating evolution...")
     call(evolution, shell=True)
 
@@ -53,8 +56,12 @@ def git_csi(project_name, after, before, exluded_dirs):
     click.echo("Generating revisions...")
     call(revisions, shell=True)
 
-    click.echo("Generating cloc...")
+    click.echo("Executing cloc...")
     call(cloc, shell=True)
+    """
+
+    click.echo("Merging revisions and lines...")
+    call(merge, shell=True)
 
 
 if __name__ == '__main__':
