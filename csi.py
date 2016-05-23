@@ -13,8 +13,9 @@ merge_maat = 'python ~/code-maat/scripts\ 4/merge_comp_freqs.py'
 @click.option('--cvs', prompt='Your cvs type', help='git, hg or svn')
 @click.option('--after', default='1960-01-01', prompt='Starting date', help='Format: yyyy-mm-dd')
 @click.option('--before', default='2050-01-01', prompt='Finish date', help='Format: yyyy-mm-dd')
+@click.option('--exluded_dirs', default='.git .idea', prompt='Excluded dirs separatted by blank spaces', help='Example: node_modules, .idea, coverage')
 
-def csi(project_name, cvs, after, before):
+def csi(project_name, cvs, after, before, exluded_dirs):
     click.echo("Let's study your %s proyect saved in %s!" % (project_name, cvs))
     click.echo("Starting Delorean...fasten your seatbelts")
     click.echo("We will travel from %s" % after)
@@ -23,23 +24,25 @@ def csi(project_name, cvs, after, before):
     click.echo("")
 
     if cvs == 'git':
-        git_csi(project_name, after, before)
+        git_csi(project_name, after, before, exluded_dirs)
     else:
         click.echo("%s csv not supported [use git or hg]" % cvs)
         sys.exit(1)
 
     click.echo("Todo ha salido a pedir de Milhouse")
 
-def hg_csi(name, cvs, after, before):
+def hg_csi(name, cvs, after, before, exluded_dirs):
     evolution = """hg log --template "rev: {rev} author: {author} date: {date|shortdate} files:\n{files %'{file}\n'}\n" > roi_evo.log"""
 
-def git_csi(project_name, after, before):
+def git_csi(project_name, after, before, exluded_dirs):
     evolution = "git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after={0} --before={1} > {2}_evo.log" \
         .format(after, before, project_name)
 
     summary = maat + " -l {0}_evo.log -c git -a summary > {0}_summary.txt".format(project_name)
 
     revisions = maat + " -l {0}_evo.log -c git -a revisions > {0}_freq.csv".format(project_name)
+
+    cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > {1}_cloc.csv".format(exluded_dirs, project_name)
 
     click.echo("Generating evolution...")
     call(evolution, shell=True)
@@ -50,7 +53,8 @@ def git_csi(project_name, after, before):
     click.echo("Generating revisions...")
     call(revisions, shell=True)
 
-
+    click.echo("Generating cloc...")
+    call(cloc, shell=True)
 
 
 if __name__ == '__main__':
