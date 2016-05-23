@@ -1,5 +1,11 @@
 import click
-import subprocess
+from subprocess import call
+
+import sys
+
+maat = '~/code-maat/ixmaat0.8.5/maat'
+merge_maat = 'python ~/code-maat/scripts\ 4/merge_comp_freqs.py'
+
 
 @click.command()
 @click.option('--name', prompt='Your codebase name',
@@ -16,10 +22,28 @@ def csi(name, cvs, after, before):
     click.echo("")
     click.echo("")
 
-    evolution = "git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after={0} --before={1} > {2}_evo.log"\
-        .format(after, before, name)
-    subprocess.call(evolution.split(' '))
+    if cvs == 'git':
+        return git_csi(name, after, before)
+    else:
+        click.echo("%s csv not supported [use git or hg]" % cvs)
+        sys.exit(1)
 
+    click.echo("Todo ha salido a pedir de Milhouse")
+
+def hg_csi(name, cvs, after, before):
+    evolution = """hg log --template "rev: {rev} author: {author} date: {date|shortdate} files:\n{files %'{file}\n'}\n" > roi_evo.log"""
+
+def git_csi(name, after, before):
+    evolution = "git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after={0} --before={1} > {2}_evo.log" \
+        .format(after, before, name)
+
+    summary = maat + " -l {0}_evo.log -c git -a summary > {0}_summary.txt".format(name)
+
+    click.echo("Generating evolution...")
+    call(evolution, shell=True)
+
+    click.echo("Generating summary...")
+    call(summary, shell=True)
 
 
 if __name__ == '__main__':
