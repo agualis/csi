@@ -1,67 +1,189 @@
+import os
+import sys
 import click
 from subprocess import call
-
-import sys
+from wordcloud import WordCloud
 
 maat = '~/code-maat/ixmaat0.8.5/maat'
 merge_maat = 'python ~/code-maat/scripts\ 4/merge_comp_freqs.py'
+json_maat = 'python ~/code-maat/scripts\ 4/csv_as_enclosure_json.py'
 
 
 @click.command()
 @click.option('--project_name', prompt='Your codebase name',
               help='The name of your project')
-@click.option('--cvs', prompt='Your cvs type', help='git, hg or svn')
-@click.option('--after', default='1960-01-01', prompt='Starting date', help='Format: yyyy-mm-dd')
-@click.option('--before', default='2050-01-01', prompt='Finish date', help='Format: yyyy-mm-dd')
-@click.option('--exluded_dirs', default='.git .idea', prompt='Excluded dirs separatted by blank spaces', help='Example: node_modules, .idea, coverage')
+@click.option('--after', default='2005-01-01', prompt='Starting date', help='Format: yyyy-mm-dd')
+@click.option('--before', default='2020-01-01', prompt='Finish date', help='Format: yyyy-mm-dd')
+@click.option('--exluded_dirs', default='.git,.idea,node_modules,typings,coverage,dist,libs,styleguide,assets', prompt='Excluded dirs separatted by commas', help='Example: node_modules,.idea,coverage')
 
-def csi(project_name, cvs, after, before, exluded_dirs):
-    click.echo("Let's study your %s proyect saved in %s!" % (project_name, cvs))
+def csi(project_name, after, before, exluded_dirs):
+
+    vcs = detect_vcs()
+
+    click.echo("Let's study your %s project saved in %s!" % (project_name, vcs))
     click.echo("Starting Delorean...fasten your seatbelts")
     click.echo("We will travel from %s" % after)
     click.echo("We will stop at %s" % before)
     click.echo("")
     click.echo("")
 
-    if cvs == 'git':
-        git_csi(project_name, after, before, exluded_dirs)
-    else:
-        click.echo("%s csv not supported [use git or hg]" % cvs)
-        sys.exit(1)
+    call("mkdir -p csi", shell=True)
+
+    """generate_evolution(vcs, after, before, project_name)
+
+    generate_summary(vcs, project_name)
+
+    generate_revisions(vcs, project_name)
+
+    execute_cloc(exluded_dirs, project_name)
+
+    merge_revisions_and_lines(project_name)
+
+    generate_json(project_name)
+
+    copy_d3_html()
+
+    analyze_soc(vcs, project_name)
+
+    analyze_temporal_coupling(vcs, project_name)"""
+
+    extract_commit_messages(vcs, after, before, project_name)
+
+    create_word_cloud(project_name)
+
+    analyze_main_developers(vcs, project_name)
+
+    calculate_individual_contributions(vcs, project_name)
+
+    calculate_entity_effort(vcs, project_name)
+
+    open_server()
 
     click.echo("Todo ha salido a pedir de Milhouse")
 
-def hg_csi(name, cvs, after, before, exluded_dirs):
-    evolution = """hg log --template "rev: {rev} author: {author} date: {date|shortdate} files:\n{files %'{file}\n'}\n" > roi_evo.log"""
 
-def git_csi(project_name, after, before, exluded_dirs):
-    evolution = "git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after={0} --before={1} > {2}_evo.log" \
-        .format(after, before, project_name)
+def detect_vcs():
+    click.echo("Looking for vcs...")
+    if os.path.isdir('./.git'):
+        click.echo("GIT setup detected")
+        return 'git'
+    if os.path.isdir('./.hg'):
+        click.echo("MERCURIAL setup detected")
+        return 'hg'
+    click.echo("%s current vcs does not exist or it is not supported [use git or hg]")
+    sys.exit(1)
 
-    summary = maat + " -l {0}_evo.log -c git -a summary > {0}_summary.txt".format(project_name)
 
-    revisions = maat + " -l {0}_evo.log -c git -a revisions > {0}_freq.csv".format(project_name)
 
-    cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > {1}_cloc.csv".format(exluded_dirs, project_name)
+def open_server():
+    click.echo("Opening server...")
+    call("cd csi", shell=True)
+    # call("python -m SimpleHTTPServer", shell=True)
 
-    merge = merge_maat + " {0}_freq.csv {0}_cloc.csv > {0}_merge.csv".format(project_name)
 
-    """
-    click.echo("Generating evolution...")
-    call(evolution, shell=True)
+def calculate_entity_effort(vcs, project_name):
+    entity_effort = maat + " -l ./csi/{0}_evo.log -c {1} -a entity-effort > ./csi/{0}_entity_effort.csv".format(
+        project_name, vcs)
+    click.echo("Calculating identity effort...")
+    call(entity_effort, shell=True)
 
-    click.echo("Generating summary...")
-    call(summary, shell=True)
 
+def calculate_individual_contributions(vcs, project_name):
+    entity_ownership = maat + " -l ./csi/{0}_evo.log -c {1} -a entity-ownership > ./csi/{0}_entity_ownership.csv".format(
+        project_name, vcs)
+    click.echo("Calculating individual contributions...")
+    call(entity_ownership, shell=True)
+
+
+def analyze_main_developers(vcs, project_name):
+    main_devs = maat + " -l ./csi/{0}_evo.log -c {1} -a main-dev > ./csi/{0}_main_devs.csv".format(project_name, vcs)
+    click.echo("Analyzing main developers...")
+    call(main_devs, shell=True)
+
+
+def create_word_cloud(project_name):
+    click.echo("Generating word cloud...")
+    text = open("./csi/{0}_commits.log".format(project_name)).read()
+    wordcloud = WordCloud(width=2000, height=1000, background_color="white").generate(text)
+    image = wordcloud.to_image()
+    image.save("./csi/{0}_commitcloud.bmp".format(project_name))
+    image.show()
+
+
+def extract_commit_messages(vcs, after, before, project_name):
+    if vcs == 'hg':
+        commit_messages = """hg log --template "{{desc}}\n" --date '>{0}' --date '<{1}' > ./csi/{2}_commits.log"""\
+            .format(after, before, project_name)
+    elif vcs == 'hg':
+        commit_messages = "git log --pretty=format:'%s' --after={0} --before={1} > ./csi/{2}_commits.log" \
+            .format(after, before, project_name)
+
+    print commit_messages
+
+    click.echo("Extracting all commit messages...")
+    call(commit_messages, shell=True)
+
+
+def analyze_temporal_coupling(vcs, project_name):
+    temporal_coupling = maat + " -l ./csi/{1}_evo.log -c {0} -a coupling > ./csi/{1}_coupling.csv".format(vcs, project_name)
+    click.echo("Analyzing temporal coupling...")
+    call(temporal_coupling, shell=True)
+
+
+def analyze_soc(vcs, project_name):
+    sum_coupling = maat + " -l ./csi/{1}_evo.log -c {0} -a soc > ./csi/{1}_soc.csv".format(vcs, project_name)
+    click.echo("Analyzing sum of coupling...")
+    call(sum_coupling, shell=True)
+
+
+def copy_d3_html():
+    copy_d3 = "cp ~/code-maat/scripts\ 4/d3.html ./csi/"
+    click.echo("Copying D3 html...")
+    call(copy_d3, shell=True)
+
+
+def generate_json(project_name):
+    to_json = json_maat + " --structure ./csi/{0}_cloc.csv --weights ./csi/{0}_freq.csv > ./csi/d3.json"\
+        .format(project_name)
+    click.echo("Generating JSON...")
+    call(to_json, shell=True)
+
+
+def merge_revisions_and_lines(project_name):
+    merge = merge_maat + " ./csi/{0}_freq.csv ./csi/{0}_cloc.csv > ./csi/{0}_merge.csv".format(project_name)
+    click.echo("Merging revisions and lines...")
+    call(merge, shell=True)
+
+
+def execute_cloc(exluded_dirs, project_name):
+    cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > ./csi/{1}_cloc.csv".format(exluded_dirs, project_name)
+    click.echo("Executing cloc...")
+    click.echo(cloc)
+    call(cloc, shell=True)
+
+
+def generate_revisions(vcs, project_name):
+    revisions = maat + " -l ./csi/{0}_evo.log -c {1} -a revisions > ./csi/{0}_freq.csv".format(project_name, vcs)
     click.echo("Generating revisions...")
     call(revisions, shell=True)
 
-    click.echo("Executing cloc...")
-    call(cloc, shell=True)
-    """
 
-    click.echo("Merging revisions and lines...")
-    call(merge, shell=True)
+def generate_summary(vcs, project_name):
+    summary = maat + " -l ./csi/{0}_evo.log -c {1} -a summary > ./csi/{0}_summary.txt".format(project_name, vcs)
+    click.echo("Generating summary...")
+    call(summary, shell=True)
+
+
+def generate_evolution(vcs, after, before, project_name):
+    if vcs == 'git':
+        evolution = "git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after={0} --before={1} > ./csi/{2}_evo.log" \
+            .format(after, before, project_name)
+    else:
+        evolution = """hg log --template "rev: {{rev}} author: {{author}} date: {{date|shortdate}} files:\n{{files %'{{file}}\n'}}\n" --date '>{0}' --date '<{1}' > ./csi/{2}_evo.log""" \
+            .format(after, before, project_name)
+
+    click.echo("Generating evolution...")
+    call(evolution, shell=True)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,8 @@
+
+language,filename,blank,comment,code,"https://github.com/AlDanial/cloc v 1.66  T=0.08 s (76.4 files/s, 4568.9 lines/s)"
+XML,./.idea/workspace.xml,0,0,180
+XML,./.idea/misc.xml,0,0,98
+Python,./csi.py,18,0,43
+XML,./.idea/modules.xml,0,0,8
+XML,./.idea/jsLibraryMappings.xml,0,0,6
+XML,./.idea/encodings.xml,0,0,6

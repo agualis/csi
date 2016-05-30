@@ -1,0 +1,18 @@
+[a974691] Alberto Gualis 2016-05-23 Generating cloc
+9	5	csi.py
+
+[47d3865] Alberto Gualis 2016-05-23 Generating revisions
+14	7	csi.py
+
+[48656c3] Alberto Gualis 2016-05-23 Generating evolution and summary
+4	4	.idea/workspace.xml
+27	3	csi.py
+
+[db338dd] Alberto Gualis 2016-05-23 Initial commit
+11	0	.idea/csi.iml
+6	0	.idea/encodings.xml
+6	0	.idea/jsLibraryMappings.xml
+98	0	.idea/misc.xml
+8	0	.idea/modules.xml
+180	0	.idea/workspace.xml
+26	0	csi.py
