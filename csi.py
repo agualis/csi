@@ -6,7 +6,8 @@ from wordcloud import WordCloud
 
 maat = '~/code-maat/ixmaat0.8.5/maat'
 merge_maat = 'python ~/code-maat/scripts\ 4/merge_comp_freqs.py'
-json_maat = 'python ~/code-maat/scripts\ 4/csv_as_enclosure_json.py'
+hotspots_maat = 'python ~/code-maat/scripts\ 4/csv_as_enclosure_json.py'
+main_devs_maat = 'python ~/code-maat/scripts\ 4/csv_main_dev_as_knowledge_json.py'
 
 
 @click.command()
@@ -14,9 +15,9 @@ json_maat = 'python ~/code-maat/scripts\ 4/csv_as_enclosure_json.py'
               help='The name of your project')
 @click.option('--after', default='2005-01-01', prompt='Starting date', help='Format: yyyy-mm-dd')
 @click.option('--before', default='2020-01-01', prompt='Finish date', help='Format: yyyy-mm-dd')
-@click.option('--exluded_dirs', default='.git,.idea,node_modules,typings,coverage,dist,libs,styleguide,assets', prompt='Excluded dirs separatted by commas', help='Example: node_modules,.idea,coverage')
+@click.option('--excluded_dirs', default='.git,.idea,node_modules,typings,coverage,dist,libs,styleguide,assets,docs', prompt='Excluded dirs separatted by commas', help='Example: node_modules,.idea,coverage')
 
-def csi(project_name, after, before, exluded_dirs):
+def csi(project_name, after, before, excluded_dirs):
 
     vcs = detect_vcs()
 
@@ -29,23 +30,23 @@ def csi(project_name, after, before, exluded_dirs):
 
     call("mkdir -p csi", shell=True)
 
-    """generate_evolution(vcs, after, before, project_name)
+    generate_evolution(vcs, after, before, project_name)
 
     generate_summary(vcs, project_name)
 
     generate_revisions(vcs, project_name)
 
-    execute_cloc(exluded_dirs, project_name)
+    execute_cloc(excluded_dirs, project_name)
 
     merge_revisions_and_lines(project_name)
 
-    generate_json(project_name)
+    generate_hotspots_json(project_name)
 
-    copy_d3_html()
+    copy_d3_files()
 
     analyze_soc(vcs, project_name)
 
-    analyze_temporal_coupling(vcs, project_name)"""
+    analyze_temporal_coupling(vcs, project_name)
 
     extract_commit_messages(vcs, after, before, project_name)
 
@@ -57,6 +58,8 @@ def csi(project_name, after, before, exluded_dirs):
 
     calculate_entity_effort(vcs, project_name)
 
+    generate_main_devs_json(project_name)
+
     open_server()
 
     click.echo("Todo ha salido a pedir de Milhouse")
@@ -67,10 +70,11 @@ def detect_vcs():
     if os.path.isdir('./.git'):
         click.echo("GIT setup detected")
         return 'git'
-    if os.path.isdir('./.hg'):
+    elif os.path.isdir('./.hg'):
         click.echo("MERCURIAL setup detected")
         return 'hg'
-    click.echo("%s current vcs does not exist or it is not supported [use git or hg]")
+    else:
+        click.echo("We could not detect valid vcs. Are you in the main folder? [use git or hg]")
     sys.exit(1)
 
 
@@ -114,11 +118,9 @@ def extract_commit_messages(vcs, after, before, project_name):
     if vcs == 'hg':
         commit_messages = """hg log --template "{{desc}}\n" --date '>{0}' --date '<{1}' > ./csi/{2}_commits.log"""\
             .format(after, before, project_name)
-    elif vcs == 'hg':
+    elif vcs == 'git':
         commit_messages = "git log --pretty=format:'%s' --after={0} --before={1} > ./csi/{2}_commits.log" \
             .format(after, before, project_name)
-
-    print commit_messages
 
     click.echo("Extracting all commit messages...")
     call(commit_messages, shell=True)
@@ -136,16 +138,23 @@ def analyze_soc(vcs, project_name):
     call(sum_coupling, shell=True)
 
 
-def copy_d3_html():
-    copy_d3 = "cp ~/code-maat/scripts\ 4/d3.html ./csi/"
-    click.echo("Copying D3 html...")
+def copy_d3_files():
+    click.echo("Copying D3 files...")
+    copy_d3 = "cp -rf ~/code-maat/scripts\ 4/d3 ./csi/"
     call(copy_d3, shell=True)
 
 
-def generate_json(project_name):
-    to_json = json_maat + " --structure ./csi/{0}_cloc.csv --weights ./csi/{0}_freq.csv > ./csi/d3.json"\
+def generate_hotspots_json(project_name):
+    to_json = hotspots_maat + " --structure ./csi/{0}_cloc.csv --weights ./csi/{0}_freq.csv > ./csi/d3/d3-merge.json"\
         .format(project_name)
-    click.echo("Generating JSON...")
+    click.echo("Generating Hotspots JSON...")
+    call(to_json, shell=True)
+
+def generate_main_devs_json(project_name):
+    to_json = main_devs_maat + " --structure ./csi/{0}_cloc.csv --owners ./csi/{0}_main_devs.csv " \
+                               "--authors ./csi/d3/author_colors.csv > ./csi/d3/d3-main-devs.json"\
+        .format(project_name)
+    click.echo("Generating Main devs JSON...")
     call(to_json, shell=True)
 
 
@@ -155,8 +164,8 @@ def merge_revisions_and_lines(project_name):
     call(merge, shell=True)
 
 
-def execute_cloc(exluded_dirs, project_name):
-    cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > ./csi/{1}_cloc.csv".format(exluded_dirs, project_name)
+def execute_cloc(excluded_dirs, project_name):
+    cloc = "cloc ./ --by-file --csv --quiet --exclude-dir {0} > ./csi/{1}_cloc.csv".format(excluded_dirs, project_name)
     click.echo("Executing cloc...")
     click.echo(cloc)
     call(cloc, shell=True)
