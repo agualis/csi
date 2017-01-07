@@ -15,7 +15,7 @@ main_devs_maat = 'python ~/code-maat/scripts\ 4/csv_main_dev_as_knowledge_json.p
               help='The name of your project')
 @click.option('--after', default='2005-01-01', prompt='Starting date', help='Format: yyyy-mm-dd')
 @click.option('--before', default='2020-01-01', prompt='Finish date', help='Format: yyyy-mm-dd')
-@click.option('--excluded_dirs', default='.git,.idea,node_modules,typings,coverage,dist,libs,styleguide,assets,docs', prompt='Excluded dirs separatted by commas', help='Example: node_modules,.idea,coverage')
+@click.option('--excluded_dirs', default='.git,.idea,node_modules,typings,coverage,dist,libs,styleguide,assets,docs,static', prompt='Excluded dirs separatted by commas', help='Example: node_modules,.idea,coverage')
 
 def csi(project_name, after, before, excluded_dirs):
 
@@ -40,9 +40,9 @@ def csi(project_name, after, before, excluded_dirs):
 
     merge_revisions_and_lines(project_name)
 
-    generate_hotspots_json(project_name)
-
     copy_d3_files()
+
+    generate_hotspots_json(project_name)
 
     analyze_soc(vcs, project_name)
 

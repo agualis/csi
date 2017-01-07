@@ -2,109 +2,121 @@
 <meta charset="utf-8">
 <style>
 
-    .node {
-        cursor: pointer;
-    }
+.node {
+  cursor: pointer;
+}
 
-    .node:hover {
-        stroke: #000;
-        stroke-width: 1.5px;
-    }
+.node:hover {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
 
-    .node--leaf {
-        fill: white;
-    }
+.node--root {
+  stroke: #777;
+  stroke-width: 2px;
+}
 
-    .label {
-        font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
-        text-anchor: middle;
-        text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
-    }
+.node--leaf {
+  fill: white;
+  stroke: #777;
+  stroke-width: 1px;
+}
 
-    .label,
-    .node--root,
-    .node--leaf {
-        pointer-events: none;
-    }
+.label {
+  font: 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+  text-anchor: middle;
+  fill: white;
+  //text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+}
+
+.label,
+.node--root,
+.node--leaf {
+  pointer-events: none;
+}
 
 </style>
 <body>
-<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="d3/d3.min.js"></script>
 <script>
 
-    var margin = 20,
-            diameter = 960;
+var margin = 10,
+    outerDiameter = 960,
+    innerDiameter = outerDiameter - margin - margin;
 
-    var color = d3.scale.linear()
-            .domain([-1, 5])
-            .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
-            .interpolate(d3.interpolateHcl);
+var x = d3.scale.linear()
+    .range([0, innerDiameter]);
 
-    var pack = d3.layout.pack()
-            .padding(2)
-            .size([diameter - margin, diameter - margin])
-            .value(function(d) { return d.size; })
+var y = d3.scale.linear()
+    .range([0, innerDiameter]);
 
-    var svg = d3.select("body").append("svg")
-            .attr("width", diameter)
-            .attr("height", diameter)
-            .append("g")
-            .attr("transform", "translate(" + diameter / 2 + "," + diameter / 2 + ")");
+var color = d3.scale.linear()
+    .domain([-1, 5])
+    .range(["hsl(185,60%,99%)", "hsl(187,40%,70%)"])
+    .interpolate(d3.interpolateHcl);
 
-    d3.json("d3.json", function(error, root) {
-        if (error) throw error;
+var pack = d3.layout.pack()
+    .padding(2)
+    .size([innerDiameter, innerDiameter])
+    .value(function(d) { return d.size; })
 
-        var focus = root,
-                nodes = pack.nodes(root),
-                view;
+var svg = d3.select("body").append("svg")
+    .attr("width", outerDiameter)
+    .attr("height", outerDiameter)
+  .append("g")
+    .attr("transform", "translate(" + margin + "," + margin + ")");
 
-        var circle = svg.selectAll("circle")
-                .data(nodes)
-                .enter().append("circle")
-                .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
-                .style("fill", function(d) { return d.children ? color(d.depth) : null; })
-                .on("click", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); });
+d3.json("hib_hotspot_proto.json", function(error, root) {
+  var focus = root,
+      nodes = pack.nodes(root);
 
-        var text = svg.selectAll("text")
-                .data(nodes)
-                .enter().append("text")
-                .attr("class", "label")
-                .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
-                .style("display", function(d) { return d.parent === root ? "inline" : "none"; })
-                .text(function(d) { return d.name; });
+  svg.append("g").selectAll("circle")
+      .data(nodes)
+    .enter().append("circle")
+      .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+      .attr("r", function(d) { return d.r; })
+      .style("fill", function(d) { return d.weight > 0.0 ? "darkred" :
+      d.children ? color(d.depth) : "WhiteSmoke"; })
+      .style("fill-opacity", function(d) { return d.weight; })
+      .on("click", function(d) { return zoom(focus == d ? root : d); });
 
-        var node = svg.selectAll("circle,text");
+  svg.append("g").selectAll("text")
+      .data(nodes)
+    .enter().append("text")
+      .attr("class", "label")
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+      .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
+      .style("display", function(d) { return d.parent === root ? null : "none"; })
+      .text(function(d) { return d.name; });
 
-        d3.select("body")
-                .style("background", color(-1))
-                .on("click", function() { zoom(root); });
+  d3.select(window)
+      .on("click", function() { zoom(root); });
 
-        zoomTo([root.x, root.y, root.r * 2 + margin]);
+  function zoom(d, i) {
+    var focus0 = focus;
+    focus = d;
 
-        function zoom(d) {
-            var focus0 = focus; focus = d;
+    var k = innerDiameter / d.r / 2;
+    x.domain([d.x - d.r, d.x + d.r]);
+    y.domain([d.y - d.r, d.y + d.r]);
+    d3.event.stopPropagation();
 
-            var transition = d3.transition()
-                    .duration(d3.event.altKey ? 7500 : 750)
-                    .tween("zoom", function(d) {
-                        var i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2 + margin]);
-                        return function(t) { zoomTo(i(t)); };
-                    });
+    var transition = d3.selectAll("text,circle").transition()
+        .duration(d3.event.altKey ? 7500 : 750)
+        .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
 
-            transition.selectAll("text")
-                    .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
-                    .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
-                    .each("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
-                    .each("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
-        }
+    transition.filter("circle")
+        .attr("r", function(d) { return k * d.r; });
 
-        function zoomTo(v) {
-            var k = diameter / v[2]; view = v;
-            node.attr("transform", function(d) { return "translate(" + (d.x - v[0]) * k + "," + (d.y - v[1]) * k + ")"; });
-            circle.attr("r", function(d) { return d.r * k; });
-        }
-    });
+    transition.filter("text")
+      .filter(function(d) { return d.parent === focus || d.parent === focus0; })
+        .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
+        .each("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+        .each("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+  }}
+);
 
-    d3.select(self.frameElement).style("height", diameter + "px");
+d3.select(self.frameElement).style("height", outerDiameter + "px");
 
 </script>
